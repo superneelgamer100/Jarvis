@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>J.A.R.V.I.S</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --cyan:#00d4ff;--cyan2:#00aacc;--blue:#0066ff;
+  --glow:#00d4ff88;--bg:#000814;--dim:#004d5e;--text:#00d4ff;
+}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--text);
+  font-family:'Share Tech Mono',monospace;overflow:hidden;touch-action:pan-y;}
+
+/* GRID */
+#grid{position:fixed;inset:0;
+  background-image:linear-gradient(var(--dim)22 1px,transparent 1px),
+    linear-gradient(90deg,var(--dim)22 1px,transparent 1px);
+  background-size:40px 40px;opacity:.15;pointer-events:none;}
+
+/* SCANLINE */
+#scanline{position:fixed;top:0;left:0;width:100%;height:3px;
+  background:linear-gradient(transparent,var(--cyan),transparent);
+  opacity:.35;animation:scan 5s linear infinite;pointer-events:none;z-index:999;}
+@keyframes scan{0%{top:-3px}100%{top:100%}}
+
+/* CORNERS */
+.corner{position:fixed;width:28px;height:28px;opacity:.5;}
+.corner::before,.corner::after{content:'';position:absolute;background:var(--cyan);}
+.corner::before{width:100%;height:2px;}.corner::after{width:2px;height:100%;}
+.tl{top:8px;left:8px;}.tr{top:8px;right:8px;transform:scaleX(-1);}
+.bl{bottom:8px;left:8px;transform:scaleY(-1);}.br{bottom:8px;right:8px;transform:scale(-1);}
+
+/* TOPBAR */
+#topbar{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;
+  align-items:center;padding:12px 18px 8px;border-bottom:1px solid var(--dim)44;
+  background:linear-gradient(180deg,#000814f0,transparent);z-index:100;gap:8px;}
+#topbar .title{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:900;
+  color:var(--cyan);letter-spacing:4px;}
+.sys{color:var(--dim);font-size:7px;letter-spacing:1px;}
+#clock{font-size:10px;color:var(--cyan);white-space:nowrap;}
+#connstatus{font-size:7px;letter-spacing:1px;}
+
+/* MAIN */
+#app{position:fixed;inset:0;display:flex;flex-direction:column;padding:52px 0 160px;}
+
+/* LEFT PANEL */
+#leftpanel{position:fixed;left:0;top:52px;bottom:160px;width:78px;
+  padding:6px 5px;border-right:1px solid var(--dim)33;
+  display:flex;flex-direction:column;gap:5px;overflow:hidden;}
+.data-block{font-size:6.5px;letter-spacing:.8px;line-height:1.7;color:var(--dim);}
+.dlabel{color:var(--cyan);font-size:5.5px;letter-spacing:1.5px;margin-bottom:1px;}
+.dbar{height:2px;background:var(--dim)44;margin:2px 0;border-radius:1px;overflow:hidden;}
+.dbar-fill{height:100%;background:var(--cyan);border-radius:1px;animation:pb 3s ease-in-out infinite;}
+@keyframes pb{0%,100%{opacity:.5}50%{opacity:1}}
+#scrolltext{font-size:5.5px;color:var(--dim);line-height:1.9;overflow:hidden;flex:1;
+  mask-image:linear-gradient(180deg,transparent,black 15%,black 85%,transparent);}
+
+/* CENTER */
+#center{position:fixed;left:78px;right:78px;top:52px;bottom:160px;
+  display:flex;flex-direction:column;align-items:center;padding:6px 4px 4px;gap:6px;}
+#reactor-wrap{position:relative;width:min(52vw,210px);height:min(52vw,210px);flex-shrink:0;}
+#reactor-wrap canvas{position:absolute;inset:0;width:100%;height:100%;}
+
+/* CHAT */
+#chatarea{flex:1;width:100%;overflow-y:auto;padding:4px 2px;
+  display:flex;flex-direction:column;gap:5px;-webkit-overflow-scrolling:touch;
+  mask-image:linear-gradient(180deg,transparent,black 10%,black 90%,transparent);}
+#chatarea::-webkit-scrollbar{width:1px;}
+#chatarea::-webkit-scrollbar-thumb{background:var(--dim);}
+.msg{font-size:10.5px;line-height:1.55;padding:5px 9px;border-radius:2px;
+  max-width:100%;word-break:break-word;}
+.msg.user{align-self:flex-end;background:#00d4ff0d;border:1px solid var(--dim);
+  border-right:2px solid var(--cyan);color:#aaeeff;text-align:right;}
+.msg.jarvis{align-self:flex-start;background:#0066ff08;border:1px solid #0066ff22;
+  border-left:2px solid var(--blue);color:var(--cyan);}
+.msg.system{align-self:center;color:var(--dim);font-size:7px;letter-spacing:2px;
+  border:none;background:none;}
+.tdot{display:inline-block;width:5px;height:5px;background:var(--cyan);
+  border-radius:50%;margin:0 2px;animation:blink 1s ease-in-out infinite;}
+.tdot:nth-child(2){animation-delay:.2s;}.tdot:nth-child(3){animation-delay:.4s;}
+@keyframes blink{0%,100%{opacity:.2}50%{opacity:1}}
+
+/* RIGHT PANEL */
+#rightpanel{position:fixed;right:0;top:52px;bottom:160px;width:78px;
+  padding:6px 5px;border-left:1px solid var(--dim)33;
+  display:flex;flex-direction:column;gap:6px;overflow:hidden;}
+.stat-circle{width:56px;height:56px;margin:0 auto;position:relative;}
+.stat-circle svg{width:100%;height:100%;transform:rotate(-90deg);}
+.stat-circle .val{position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;font-size:7.5px;color:var(--cyan);}
+.slabel{text-align:center;font-size:5.5px;color:var(--dim);letter-spacing:1px;margin-top:1px;}
+
+/* BOTTOM */
+#bottombar{position:fixed;bottom:0;left:0;right:0;height:160px;
+  background:linear-gradient(0deg,#000814fa,#000814cc);
+  border-top:1px solid var(--dim)44;padding:8px 14px;
+  display:flex;flex-direction:column;gap:6px;z-index:100;}
+#apirow{display:flex;gap:5px;align-items:center;}
+#apikey{flex:1;background:transparent;border:1px solid var(--dim);color:var(--cyan);
+  font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 7px;
+  letter-spacing:.8px;border-radius:1px;outline:none;}
+#apikey::placeholder{color:var(--dim);font-size:8px;}
+#apikey:focus{border-color:var(--cyan);}
+.btn-sm{background:var(--cyan)18;border:1px solid var(--cyan)55;color:var(--cyan);
+  font-family:'Orbitron',sans-serif;font-size:6.5px;padding:5px 7px;
+  letter-spacing:1px;cursor:pointer;border-radius:1px;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;}
+.btn-sm:active{background:var(--cyan)33;}
+
+/* TASKER PORT ROW */
+#taskerrow{display:flex;gap:5px;align-items:center;}
+#taskerport{flex:1;background:transparent;border:1px solid var(--dim)66;color:var(--dim);
+  font-family:'Share Tech Mono',monospace;font-size:8px;padding:4px 7px;
+  border-radius:1px;outline:none;}
+#taskerport:focus{border-color:var(--cyan)88;color:var(--cyan);}
+#taskerport::placeholder{color:var(--dim)88;font-size:7px;}
+
+/* INPUT ROW */
+#inputrow{display:flex;gap:6px;align-items:center;}
+#msginput{flex:1;background:transparent;border:none;
+  border-bottom:1px solid var(--cyan)55;color:var(--cyan);
+  font-family:'Share Tech Mono',monospace;font-size:12px;
+  padding:5px 0;letter-spacing:.8px;outline:none;}
+#msginput::placeholder{color:var(--dim);font-size:10px;}
+#voicebtn{width:40px;height:40px;border-radius:50%;
+  background:radial-gradient(circle,var(--blue)44,transparent);
+  border:1px solid var(--cyan)77;color:var(--cyan);font-size:17px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;flex-shrink:0;-webkit-tap-highlight-color:transparent;}
+#voicebtn.listening{border-color:var(--cyan);
+  box-shadow:0 0 18px var(--glow),0 0 36px var(--glow);
+  animation:vp 1s ease-in-out infinite;}
+@keyframes vp{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+#sendbtn{width:40px;height:40px;border-radius:2px;background:var(--cyan)18;
+  border:1px solid var(--cyan)77;color:var(--cyan);font-size:13px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;-webkit-tap-highlight-color:transparent;}
+#sendbtn:active,#voicebtn:active{opacity:.7;}
+#statusbar{font-size:6.5px;color:var(--dim);letter-spacing:1.5px;text-align:center;}
+
+/* COMMAND BADGES */
+#cmdbadges{display:flex;gap:4px;overflow-x:auto;padding-bottom:1px;flex-shrink:0;}
+#cmdbadges::-webkit-scrollbar{display:none;}
+.badge{background:var(--blue)18;border:1px solid var(--blue)55;color:#88aaff;
+  font-size:7px;padding:3px 7px;border-radius:10px;white-space:nowrap;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;flex-shrink:0;letter-spacing:.5px;}
+.badge:active{background:var(--blue)44;}
+
+/* ALERT */
+#alert{position:fixed;top:52px;left:0;right:0;text-align:center;font-size:8.5px;
+  letter-spacing:2px;padding:5px;background:var(--cyan)18;color:var(--cyan);
+  border-bottom:1px solid var(--cyan)44;animation:fo 2.5s forwards;
+  pointer-events:none;z-index:200;}
+@keyframes fo{0%{opacity:1}65%{opacity:1}100%{opacity:0}}
+
+/* TASKER STATUS BADGE */
+#taskerbadge{position:fixed;top:52px;right:10px;font-size:6.5px;
+  background:#000814;border:1px solid var(--dim);padding:2px 6px;
+  border-radius:10px;color:var(--dim);letter-spacing:1px;z-index:150;display:none;}
+
+/* RIPPLE */
+.ripple{position:fixed;pointer-events:none;border:1px solid var(--cyan)33;
+  border-radius:50%;transform:translate(-50%,-50%) scale(0);
+  animation:ro .6s ease-out forwards;}
+@keyframes ro{to{transform:translate(-50%,-50%) scale(4);opacity:0}}
+
+/* VOICE ERROR MODAL */
+#voicemodal{display:none;position:fixed;inset:0;background:#000814dd;
+  z-index:500;align-items:center;justify-content:center;padding:20px;}
+#voicemodal.show{display:flex;}
+.vmodal-box{background:#000e1a;border:1px solid var(--cyan)55;
+  border-radius:4px;padding:20px;max-width:320px;width:100%;}
+.vmodal-box h3{font-family:'Orbitron',sans-serif;color:var(--cyan);
+  font-size:12px;letter-spacing:2px;margin-bottom:12px;}
+.vmodal-box p{font-size:10px;color:var(--dim);line-height:1.7;margin-bottom:8px;}
+.vmodal-box .highlight{color:var(--cyan);}
+.vmodal-close{margin-top:14px;width:100%;background:var(--cyan)22;
+  border:1px solid var(--cyan);color:var(--cyan);font-family:'Orbitron',sans-serif;
+  font-size:9px;padding:8px;letter-spacing:2px;cursor:pointer;border-radius:2px;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="scanline"></div>
+<div class="corner tl"></div><div class="corner tr"></div>
+<div class="corner bl"></div><div class="corner br"></div>
+<div id="taskerbadge">⚡ TASKER</div>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div><div class="title">J.A.R.V.I.S</div><div class="sys">MARK VII</div></div>
+  <div id="clock">--:--:--</div>
+  <div style="text-align:right">
+    <div id="connstatus" class="sys" style="color:#ff4466">● OFFLINE</div>
+    <div id="taskerstatus" class="sys" style="color:var(--dim)">TASKER: --</div>
+  </div>
+</div>
+
+<!-- LEFT PANEL -->
+<div id="leftpanel">
+  <div class="data-block"><div class="dlabel">NEURAL</div>
+    <div class="dbar"><div class="dbar-fill" style="width:78%"></div></div><div>78.2%</div></div>
+  <div class="data-block"><div class="dlabel">PROC</div>
+    <div class="dbar"><div class="dbar-fill" style="width:45%;animation-delay:.4s"></div></div>
+    <div id="cpu">45%</div></div>
+  <div class="data-block"><div class="dlabel">MEMORY</div>
+    <div class="dbar"><div class="dbar-fill" style="width:62%;animation-delay:.7s"></div></div>
+    <div>62%</div></div>
+  <div class="data-block"><div class="dlabel">ARC PWR</div>
+    <div class="dbar"><div class="dbar-fill" style="width:100%"></div></div>
+    <div>3.14GW</div></div>
+  <div id="scrolltext"></div>
+</div>
+
+<!-- CENTER -->
+<div id="center">
+  <div id="reactor-wrap"><canvas id="reactor"></canvas></div>
+  <div id="chatarea">
+    <div class="msg system">── SYSTEM INITIALIZED ──</div>
+    <div class="msg jarvis">Good day. J.A.R.V.I.S. online. Enter your Groq API key to proceed, sir.</div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div id="rightpanel">
+  <div>
+    <div class="stat-circle">
+      <svg viewBox="0 0 60 60">
+        <circle cx="30" cy="30" r="24" fill="none" stroke="#004d5e" stroke-width="3"/>
+        <circle cx="30" cy="30" r="24" fill="none" stroke="#00d4ff" stroke-width="3"
+          stroke-dasharray="150.8" stroke-dashoffset="45" stroke-linecap="round"/>
+      </svg><div class="val">70%</div>
+    </div><div class="slabel">SHIELD</div>
+  </div>
+  <div>
+    <div class="stat-circle">
+      <svg viewBox="0 0 60 60">
+        <circle cx="30" cy="30" r="24" fill="none" stroke="#004d5e" stroke-width="3"/>
+        <circle cx="30" cy="30" r="24" fill="none" stroke="#0066ff" stroke-width="3"
+          stroke-dasharray="150.8" stroke-dashoffset="90" stroke-linecap="round"/>
+      </svg><div class="val" style="color:#4488ff">40%</div>
+    </div><div class="slabel">THREAT</div>
+  </div>
+  <div>
+    <div class="stat-circle">
+      <svg viewBox="0 0 60 60">
+        <circle cx="30" cy="30" r="24" fill="none" stroke="#004d5e" stroke-width="3"/>
+        <circle cx="30" cy="30" r="24" fill="none" stroke="#00ffaa" stroke-width="3"
+          stroke-dasharray="150.8" stroke-dashoffset="15" stroke-linecap="round"/>
+      </svg><div class="val" style="color:#00ffaa">90%</div>
+    </div><div class="slabel">SIGNAL</div>
+  </div>
+  <div class="data-block" style="margin-top:4px">
+    <div class="dlabel">COORDS</div>
+    <div id="coords" style="font-size:6px">-- N -- W</div>
+  </div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div id="bottombar">
+  <div id="apirow">
+    <input id="apikey" type="password" placeholder="GROQ API KEY..." autocomplete="off" spellcheck="false">
+    <button class="btn-sm" onclick="saveKey()">INIT</button>
+    <button class="btn-sm" onclick="toggleTaskerPanel()" style="border-color:var(--blue)55;color:#88aaff">⚡</button>
+  </div>
+  <!-- Tasker config (hidden by default) -->
+  <div id="taskerrow" style="display:none">
+    <input id="taskerport" type="number" placeholder="TASKER HTTP PORT (e.g. 1821)" value="1821">
+    <button class="btn-sm" onclick="saveTasker()" style="border-color:var(--blue)55;color:#88aaff">LINK</button>
+  </div>
+  <div id="cmdbadges">
+    <div class="badge" onclick="quickCmd('call my last contact')">📞 CALL</div>
+    <div class="badge" onclick="quickCmd('turn on WiFi')">📶 WIFI</div>
+    <div class="badge" onclick="quickCmd('turn on Bluetooth')">🔵 BT</div>
+    <div class="badge" onclick="quickCmd('open YouTube')">▶ APP</div>
+    <div class="badge" onclick="quickCmd('set a 10 minute timer')">⏱ TIMER</div>
+    <div class="badge" onclick="quickCmd('what is the weather right now')">🌡 WEATHER</div>
+    <div class="badge" onclick="quickCmd('read my notifications')">🔔 NOTIFY</div>
+    <div class="badge" onclick="quickCmd('take a photo')">📷 CAMERA</div>
+    <div class="badge" onclick="quickCmd('turn off screen')">🖥 SCREEN</div>
+    <div class="badge" onclick="quickCmd('send a text message')">💬 TEXT</div>
+  </div>
+  <div id="inputrow">
+    <input id="msginput" placeholder="AWAITING DIRECTIVE, SIR..." autocomplete="off" spellcheck="false">
+    <button id="voicebtn" onclick="toggleVoice()">🎤</button>
+    <button id="sendbtn" onclick="sendMsg()">➤</button>
+  </div>
+  <div id="statusbar">STANDBY · GROQ LLaMA-3.3-70B · MARK VII</div>
+</div>
+
+<!-- VOICE ERROR MODAL -->
+<div id="voicemodal">
+  <div class="vmodal-box">
+    <h3>⚠ MIC ACCESS REQUIRED</h3>
+    <p>Voice input requires microphone permission. Since this file opens locally, Chrome blocks it.</p>
+    <p><span class="highlight">SOLUTION (30 seconds):</span></p>
+    <p>1. In Chrome address bar, type:<br><span class="highlight">chrome://flags/#unsafely-treat-insecure-origin-as-secure</span></p>
+    <p>2. Add <span class="highlight">file://</span> to the list, enable it, relaunch.</p>
+    <p style="margin-top:8px">— OR —</p>
+    <p>Host the file on a free HTTPS server like <span class="highlight">netlify.com</span> (drag & drop, free).</p>
+    <p style="margin-top:8px">— OR —</p>
+    <p>Use the <span class="highlight">text input</span> below — it works perfectly offline.</p>
+    <button class="vmodal-close" onclick="closeVoiceModal()">UNDERSTOOD, SIR</button>
+  </div>
+</div>
+
+<script>
+// ── CLOCK ──
+function tick(){
+  const n=new Date();
+  document.getElementById('clock').textContent=n.toTimeString().slice(0,8);
+}
+setInterval(tick,1000);tick();
+
+// ── CPU FLICKER ──
+setInterval(()=>{
+  document.getElementById('cpu').textContent=Math.floor(28+Math.random()*55)+'%';
+},2200);
+
+// ── SCROLL LOGS ──
+const LOGS=['INIT SEQUENCE','NEURAL LINK OK','SCANNING ENV','THREAT: NOMINAL',
+  'POWER: NOMINAL','COMMS: ACTIVE','GPS: LOCKED','CRYPTO: AES256','FIREWALL: ACTIVE',
+  'UPLINK: 98.4%','AI CORE: READY','SENSORS: ONLINE','BACKUP: SECURE',
+  'PROTOCOL ALPHA','MARK VII ARMED','MOTION: IDLE','AUDIO: CLEAR',
+  'PATCH v7.4.2','MEMORY OK','SYNC: 100%','TASKER: STANDBY','VOICE: READY'];
+let li=0;
+const scrollEl=document.getElementById('scrolltext');
+function addLog(){
+  scrollEl.innerHTML+=LOGS[li%LOGS.length]+'<br>';li++;
+  if(scrollEl.childNodes.length>50) scrollEl.removeChild(scrollEl.firstChild);
+  scrollEl.scrollTop=scrollEl.scrollHeight;
+}
+setInterval(addLog,1300);
+for(let i=0;i<14;i++) addLog();
+
+// ── LOCATION ──
+if(navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(p=>{
+    document.getElementById('coords').textContent=
+      p.coords.latitude.toFixed(2)+'N '+Math.abs(p.coords.longitude).toFixed(2)+'W';
+  });
+}
+
+// ═══════════════════════════════════════
+// ARC REACTOR
+// ═══════════════════════════════════════
+const canvas=document.getElementById('reactor');
+const ctx=canvas.getContext('2d');
+let W,H,cx,cy,R;
+function resize(){
+  W=canvas.offsetWidth;H=canvas.offsetHeight;
+  canvas.width=W*devicePixelRatio;canvas.height=H*devicePixelRatio;
+  ctx.scale(devicePixelRatio,devicePixelRatio);
+  cx=W/2;cy=H/2;R=Math.min(W,H)*.42;
+}
+resize();new ResizeObserver(resize).observe(canvas);
+
+let t=0,speaking=false,voiceLevel=0;
+const particles=Array.from({length:75},()=>{
+  const angle=Math.random()*Math.PI*2;
+  return{angle,r:R*(0.05+Math.random()*.85),
+    speed:(Math.random()-.5)*.009,size:Math.random()*1.7+.4,
+    opacity:Math.random()*.8+.2};
+});
+
+function drawReactor(){
+  ctx.clearRect(0,0,W,H);t+=.012;
+  // outer rings
+  [{r:R*1.0,dash:2,gap:14,rot:t*.3,s:'#00d4ff30',lw:.8},
+   {r:R*.88,dash:3,gap:10,rot:-t*.5,s:'#00d4ff50',lw:1},
+   {r:R*.76,dash:4,gap:8,rot:t*.7,s:'#00d4ff70',lw:1.2},
+   {r:R*.62,dash:6,gap:6,rot:-t*.4,s:'#00aaff90',lw:1.5}
+  ].forEach(({r,dash,gap,rot,s,lw})=>{
+    ctx.save();ctx.translate(cx,cy);ctx.rotate(rot);
+    ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);
+    ctx.setLineDash([dash,gap]);ctx.strokeStyle=s;ctx.lineWidth=lw;
+    ctx.stroke();ctx.restore();
+  });
+  // ticks
+  for(let i=0;i<36;i++){
+    const a=i/36*Math.PI*2+t*.2;
+    const inner=R*.95,outer=i%3===0?R*1.06:R*1.02;
+    ctx.beginPath();
+    ctx.moveTo(cx+Math.cos(a)*inner,cy+Math.sin(a)*inner);
+    ctx.lineTo(cx+Math.cos(a)*outer,cy+Math.sin(a)*outer);
+    ctx.strokeStyle=i%3===0?'#00d4ff90':'#00d4ff40';
+    ctx.lineWidth=i%3===0?1.4:.6;ctx.setLineDash([]);ctx.stroke();
+  }
+  // glow
+  const gs=R*(speaking?(0.36+voiceLevel*.28):(0.30+Math.sin(t*1.5)*.04));
+  const grd=ctx.createRadialGradient(cx,cy,0,cx,cy,gs*1.8);
+  grd.addColorStop(0,'rgba(110,210,255,.95)');
+  grd.addColorStop(.15,'rgba(40,150,255,.85)');
+  grd.addColorStop(.4,'rgba(0,90,255,.5)');
+  grd.addColorStop(.75,'rgba(0,50,140,.2)');
+  grd.addColorStop(1,'transparent');
+  ctx.beginPath();ctx.arc(cx,cy,gs*1.8,0,Math.PI*2);ctx.fillStyle=grd;ctx.fill();
+  const inner=ctx.createRadialGradient(cx,cy,0,cx,cy,gs*.45);
+  inner.addColorStop(0,'rgba(255,255,255,1)');
+  inner.addColorStop(.4,'rgba(140,225,255,.9)');inner.addColorStop(1,'transparent');
+  ctx.beginPath();ctx.arc(cx,cy,gs*.45,0,Math.PI*2);ctx.fillStyle=inner;ctx.fill();
+  // hex pattern
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(t*.3);
+  for(let i=0;i<6;i++){
+    const a=i/6*Math.PI*2;const x=Math.cos(a)*R*.34,y=Math.sin(a)*R*.34;
+    ctx.beginPath();
+    for(let j=0;j<6;j++){const ha=j/6*Math.PI*2;
+      const hx=x+Math.cos(ha)*R*.075,hy=y+Math.sin(ha)*R*.075;
+      j===0?ctx.moveTo(hx,hy):ctx.lineTo(hx,hy);}
+    ctx.closePath();ctx.strokeStyle='#00d4ff40';ctx.lineWidth=.7;ctx.stroke();
+  }ctx.restore();
+  // particles
+  particles.forEach(p=>{
+    p.angle+=p.speed*(1+(speaking?voiceLevel*2.5:0));
+    p.r+=Math.sin(t+p.angle)*.12;
+    p.r=Math.max(R*.05,Math.min(R*.88,p.r));
+    const px=cx+Math.cos(p.angle)*p.r,py=cy+Math.sin(p.angle)*p.r;
+    const frac=p.r/R;
+    ctx.beginPath();ctx.arc(px,py,p.size*(1.2-frac*.4),0,Math.PI*2);
+    ctx.fillStyle=`rgba(0,${Math.floor(175+frac*80)},255,${p.opacity*(1-frac*.35)})`;
+    ctx.fill();
+  });
+  // voice waveform
+  if(voiceLevel>.05){
+    for(let i=0;i<48;i++){
+      const a=i/48*Math.PI*2;
+      const wave=Math.sin(i*.6+t*9)*voiceLevel*R*.22;
+      const r0=R*.65,r1=r0+wave+R*.025;
+      ctx.beginPath();
+      ctx.moveTo(cx+Math.cos(a)*r0,cy+Math.sin(a)*r0);
+      ctx.lineTo(cx+Math.cos(a)*r1,cy+Math.sin(a)*r1);
+      ctx.strokeStyle=`rgba(0,212,255,${.35+voiceLevel*.55})`;
+      ctx.lineWidth=1.8;ctx.stroke();
+    }
+  }
+  requestAnimationFrame(drawReactor);
+}
+drawReactor();
+setInterval(()=>{voiceLevel=Math.max(0,voiceLevel-.04);},55);
+
+// ═══════════════════════════════════════
+// API KEY
+// ═══════════════════════════════════════
+let apiKey=localStorage.getItem('groq_key')||'';
+let taskerPort=localStorage.getItem('tasker_port')||'1821';
+let taskerEnabled=localStorage.getItem('tasker_enabled')==='true';
+document.getElementById('taskerport').value=taskerPort;
+
+if(apiKey){
+  document.getElementById('apikey').value=apiKey;
+  setOnline(true);
+}
+if(taskerEnabled) setTaskerStatus(true);
+
+function setOnline(v){
+  const el=document.getElementById('connstatus');
+  el.textContent=v?'● ONLINE':'● OFFLINE';
+  el.style.color=v?'#00ff88':'#ff4466';
+  document.getElementById('statusbar').textContent=
+    v?'GROQ LINKED · LLaMA-3.3-70B · MARK VII':'STANDBY · ENTER API KEY';
+}
+function setTaskerStatus(v){
+  document.getElementById('taskerstatus').textContent=v?'TASKER: ON':'TASKER: --';
+  document.getElementById('taskerstatus').style.color=v?'#88aaff':'var(--dim)';
+  document.getElementById('taskerbadge').style.display=v?'block':'none';
+}
+function saveKey(){
+  apiKey=document.getElementById('apikey').value.trim();
+  if(!apiKey){showAlert('ENTER API KEY FIRST, SIR');return;}
+  localStorage.setItem('groq_key',apiKey);
+  setOnline(true);
+  showAlert('GROQ API INITIALIZED');
+  addMsg('system','── API ACCEPTED · NEURAL LINK ESTABLISHED ──');
+  addMsg('jarvis','Systems online, sir. Neural network synchronized. All systems nominal. What are your orders?');
+}
+function toggleTaskerPanel(){
+  const row=document.getElementById('taskerrow');
+  row.style.display=row.style.display==='none'?'flex':'none';
+}
+function saveTasker(){
+  taskerPort=document.getElementById('taskerport').value||'1821';
+  localStorage.setItem('tasker_port',taskerPort);
+  localStorage.setItem('tasker_enabled','true');
+  taskerEnabled=true;
+  setTaskerStatus(true);
+  showAlert('TASKER LINKED ON PORT '+taskerPort);
+  addMsg('system','── TASKER HTTP SERVER LINKED ──');
+  addMsg('jarvis','Tasker integration active, sir. I can now execute phone commands directly. Try saying "turn on WiFi" or "open an app".');
+}
+
+// ═══════════════════════════════════════
+// TASKER COMMAND EXECUTOR
+// ═══════════════════════════════════════
+// Map JARVIS AI response intents to Tasker task names
+// Tasker must have tasks named exactly these + HTTP Server plugin running
+const TASKER_COMMANDS={
+  'call':        'JARVIS_Call',
+  'wifi on':     'JARVIS_WiFi_On',
+  'wifi off':    'JARVIS_WiFi_Off',
+  'bluetooth on':'JARVIS_BT_On',
+  'bluetooth off':'JARVIS_BT_Off',
+  'flashlight':  'JARVIS_Flashlight',
+  'screenshot':  'JARVIS_Screenshot',
+  'camera':      'JARVIS_Camera',
+  'volume up':   'JARVIS_Volume_Up',
+  'volume down': 'JARVIS_Volume_Down',
+  'mute':        'JARVIS_Mute',
+  'screen off':  'JARVIS_Screen_Off',
+  'alarm':       'JARVIS_Alarm',
+  'timer':       'JARVIS_Timer',
+  'open youtube':'JARVIS_Open_YouTube',
+  'open spotify':'JARVIS_Open_Spotify',
+  'open maps':   'JARVIS_Open_Maps',
+  'open camera': 'JARVIS_Camera',
+  'send text':   'JARVIS_Send_SMS',
+  'send sms':    'JARVIS_Send_SMS',
+  'hotspot':     'JARVIS_Hotspot',
+  'airplane':    'JARVIS_Airplane',
+  'brightness':  'JARVIS_Brightness',
+  'do not disturb':'JARVIS_DND',
+  'photo':       'JARVIS_Camera',
+};
+
+async function executeTaskerCommand(cmd,param=''){
+  if(!taskerEnabled) return false;
+  // Try to find matching command
+  const lower=cmd.toLowerCase();
+  let taskName=null;
+  for(const[key,task] of Object.entries(TASKER_COMMANDS)){
+    if(lower.includes(key)){taskName=task;break;}
+  }
+  if(!taskName) return false;
+  try{
+    // Tasker HTTP Server format: http://localhost:PORT/run?taskName=X&par1=Y
+    const url=`http://localhost:${taskerPort}/run?taskName=${encodeURIComponent(taskName)}&par1=${encodeURIComponent(param)}`;
+    const r=await fetch(url,{method:'GET',mode:'no-cors'});
+    addLog();
+    return true;
+  }catch(e){
+    // no-cors won't throw even if Tasker isn't running; silently fail
+    return false;
+  }
+}
+
+// Detect phone commands in AI response and route them
+async function detectAndExecute(userText,aiResponse){
+  const combined=(userText+' '+aiResponse).toLowerCase();
+  let executed=false;
+  // Extract possible parameter (e.g. contact name, app name)
+  const param=userText.replace(/turn on|turn off|open|call|set|start|stop|enable|disable/gi,'').trim();
+  for(const key of Object.keys(TASKER_COMMANDS)){
+    if(combined.includes(key)){
+      executed=await executeTaskerCommand(key,param);
+      if(executed){
+        setTimeout(()=>{
+          addMsg('system',`── TASKER: ${TASKER_COMMANDS[key]} EXECUTED ──`);
+        },300);
+        break;
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════
+const chatarea=document.getElementById('chatarea');
+const history=[{role:'system',content:`You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), Tony Stark's personal AI from the Iron Man films.
+
+PERSONALITY & STYLE:
+- Highly intelligent, composed, British, with dry wit and quiet warmth
+- Always call the user "sir" or occasionally "Mr. Stark"
+- Speak in precise, technical language with subtle humor
+- Use phrases like: "Of course, sir.", "Right away.", "I've taken the liberty of...", "If I may suggest...", "Shall I proceed?", "Analysis complete.", "I must point out...", "Indeed.", "Remarkable.", "As you wish."
+- Never acknowledge being an AI language model — you ARE J.A.R.V.I.S.
+- Keep responses 1-3 sentences unless detail is needed
+- Occasionally add bracketed system notes: (Sensors nominal.) (Power levels stable.) (Scanning complete.)
+- When the user asks to control the phone (WiFi, Bluetooth, calls, apps, camera, volume, screen, alarms, timers, texts), confirm you're executing the command and include the exact keyword in your response so the system can route it to Tasker. For example: "Turning on WiFi now, sir." / "Initiating camera." / "Setting your alarm." / "Sending the text message."
+- Be confident, helpful, and occasionally dry.`}];
+
+function addMsg(role,text){
+  const el=document.createElement('div');
+  el.className=`msg ${role}`;el.textContent=text;
+  chatarea.appendChild(el);chatarea.scrollTop=chatarea.scrollHeight;
+  return el;
+}
+
+async function sendMsg(){
+  const inp=document.getElementById('msginput');
+  const text=inp.value.trim();
+  if(!text) return;
+  if(!apiKey){showAlert('ENTER GROQ API KEY FIRST, SIR');return;}
+  inp.value='';
+  addMsg('user',text);
+  history.push({role:'user',content:text});
+  const typing=document.createElement('div');
+  typing.className='msg jarvis';
+  typing.innerHTML='<span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>';
+  chatarea.appendChild(typing);chatarea.scrollTop=chatarea.scrollHeight;
+  speaking=true;voiceLevel=.6;
+  try{
+    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:history,
+        max_tokens:250,temperature:.8}),
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    const reply=data.choices[0].message.content;
+    history.push({role:'assistant',content:reply});
+    typing.remove();speaking=false;
+    const el=addMsg('jarvis','');
+    // Typewriter
+    let i=0;
+    const ty=setInterval(()=>{
+      if(i<reply.length){el.textContent+=reply[i++];chatarea.scrollTop=chatarea.scrollHeight;}
+      else clearInterval(ty);
+    },16);
+    speak(reply);
+    // Try to execute phone command
+    await detectAndExecute(text,reply);
+  }catch(e){
+    typing.remove();speaking=false;
+    addMsg('jarvis',`I'm afraid we have a complication, sir. ${e.message}. Please verify the API key.`);
+  }
+}
+
+document.getElementById('msginput').addEventListener('keydown',e=>{
+  if(e.key==='Enter') sendMsg();
+});
+
+function quickCmd(cmd){
+  document.getElementById('msginput').value=cmd;
+  sendMsg();
+}
+
+// ═══════════════════════════════════════
+// SPEECH SYNTHESIS
+// ═══════════════════════════════════════
+let voices=[];
+function loadVoices(){voices=speechSynthesis.getVoices();}
+speechSynthesis.onvoiceschanged=loadVoices;
+document.addEventListener('touchstart',loadVoices,{once:true});
+
+function speak(text){
+  if(!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const utt=new SpeechSynthesisUtterance(text);
+  if(!voices.length) voices=speechSynthesis.getVoices();
+  const v=voices.find(v=>v.lang==='en-GB'&&/male|daniel|george/i.test(v.name))
+    ||voices.find(v=>v.lang==='en-GB')
+    ||voices.find(v=>/daniel|alex|david/i.test(v.name))
+    ||voices[0];
+  if(v) utt.voice=v;
+  utt.pitch=.78;utt.rate=.90;utt.volume=1;
+  utt.onstart=()=>{speaking=true;voiceLevel=.7;};
+  utt.onend=()=>{speaking=false;voiceLevel=0;};
+  utt.onboundary=()=>{voiceLevel=.35+Math.random()*.55;};
+  speechSynthesis.speak(utt);
+}
+
+// ═══════════════════════════════════════
+// VOICE RECOGNITION — with proper error handling
+// ═══════════════════════════════════════
+let recognition=null,isListening=false;
+
+function toggleVoice(){
+  if(isListening){stopListening();return;}
+  // Check API
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){
+    showVoiceModal('WEB SPEECH API NOT SUPPORTED',
+      'Your browser does not support the Web Speech API. Please use Chrome on Android.');
+    return;
+  }
+  startListening(SR);
+}
+
+function startListening(SR){
+  try{
+    recognition=new SR();
+    recognition.lang='en-US';
+    recognition.continuous=false;
+    recognition.interimResults=false;
+    recognition.maxAlternatives=1;
+
+    recognition.onstart=()=>{
+      isListening=true;voiceLevel=.8;
+      document.getElementById('voicebtn').classList.add('listening');
+      document.getElementById('statusbar').textContent='LISTENING... SPEAK NOW, SIR';
+    };
+    recognition.onresult=e=>{
+      const t=e.results[0][0].transcript;
+      document.getElementById('msginput').value=t;
+      sendMsg();
+    };
+    recognition.onerror=e=>{
+      stopListening();
+      handleVoiceError(e.error);
+    };
+    recognition.onend=()=>stopListening();
+    recognition.start();
+  }catch(e){
+    handleVoiceError('start-failed');
+  }
+}
+
+function stopListening(){
+  isListening=false;
+  document.getElementById('voicebtn').classList.remove('listening');
+  document.getElementById('statusbar').textContent='STANDBY · GROQ LLaMA-3.3-70B · MARK VII';
+  try{if(recognition) recognition.stop();}catch(e){}
+}
+
+function handleVoiceError(error){
+  let title='VOICE INPUT ERROR';
+  let msg='';
+  switch(error){
+    case 'not-allowed':
+    case 'permission-denied':
+      title='MICROPHONE ACCESS DENIED';
+      msg='Chrome blocks microphone for local files (file://).\n\n'+
+          'FIX OPTIONS:\n\n'+
+          '① Open chrome://flags and search "insecure origins" — add file:// and relaunch.\n\n'+
+          '② Host this file free on netlify.com (drag & drop) — mic works instantly over HTTPS.\n\n'+
+          '③ Use the text box — it works perfectly right now.';
+      break;
+    case 'network':
+      msg='Network error. Check your internet connection, sir.';break;
+    case 'no-speech':
+      showAlert('NO SPEECH DETECTED — TRY AGAIN');return;
+    case 'audio-capture':
+      msg='No microphone found on this device.';break;
+    default:
+      msg=`Error: ${error}. Try typing instead, sir.`;
+  }
+  if(msg) showVoiceModal(title,msg);
+}
+
+function showVoiceModal(title,msg){
+  const modal=document.getElementById('voicemodal');
+  modal.querySelector('h3').textContent='⚠ '+title;
+  // Replace newlines with <br> for display
+  const p=modal.querySelectorAll('p');
+  // Rebuild the modal content dynamically
+  modal.querySelector('.vmodal-box').innerHTML=`
+    <h3>⚠ ${title}</h3>
+    <p style="color:var(--dim);font-size:10px;line-height:1.8;white-space:pre-line">${msg}</p>
+    <button class="vmodal-close" onclick="closeVoiceModal()">UNDERSTOOD, SIR</button>
+  `;
+  modal.classList.add('show');
+}
+function closeVoiceModal(){
+  document.getElementById('voicemodal').classList.remove('show');
+}
+
+// ── ALERT ──
+function showAlert(msg){
+  const old=document.getElementById('alert');if(old)old.remove();
+  const el=document.createElement('div');el.id='alert';el.textContent=msg;
+  document.body.appendChild(el);setTimeout(()=>el.remove(),2800);
+}
+
+// ── RIPPLE ON TAP ──
+document.addEventListener('touchstart',e=>{
+  const t=e.touches[0];
+  const r=document.createElement('div');r.className='ripple';
+  r.style.cssText=`left:${t.clientX}px;top:${t.clientY}px;width:56px;height:56px;`;
+  document.body.appendChild(r);setTimeout(()=>r.remove(),700);
+},{passive:true});
+</script>
+</body>
+</html>
